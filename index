@@ -1,1 +1,823 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>近況3択クイズ</title>
+
+    <!-- ▼▼ PWAの最小追記（ここから） ▼▼ -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
+    <!-- ▲▲ PWAの最小追記（ここまで） ▲▲ -->
+
+    <style>
+        /* 最初のバージョン v1 のスタイルをベースに調整 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 20px);
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .section h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        /* プレイヤー管理 */
+        .player-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .player-input-group input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+            min-height: 44px; /* タッチ領域確保 */
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:active {
+            background: #5568d3;
+            transform: scale(0.98);
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger:active {
+            background: #ff5252;
+            transform: scale(0.98);
+        }
+
+        .btn-success {
+            background: #51cf66;
+            color: white;
+        }
+
+        .btn-success:active {
+            background: #40c057;
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #868e96;
+            color: white;
+        }
+
+        .btn-secondary:active {
+            background: #748087;
+            transform: scale(0.98);
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            min-height: 36px;
+        }
+
+        .player-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .player-item.host {
+            border-left-color: #51cf66;
+            background: #f0fdf4;
+        }
+
+        .player-info {
+            flex: 1;
+        }
+
+        .player-name {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .player-score {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .player-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        /* ラウンド管理 */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .timer-input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .timer-input-group input {
+            width: 80px;
+            text-align: center;
+        }
+
+        .candidates-section {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .candidate-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        /* ゲーム画面 */
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .round-info {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .round-info h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #667eea;
+        }
+
+        .answers-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .answer-option {
+            padding: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+            min-height: 80px;
+        }
+
+        .answer-option:active {
+            transform: scale(0.98);
+        }
+
+        .answer-option.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+            color: #667eea;
+        }
+
+        /* 結果表示の色分け */
+        .answer-option.truth {
+            border-color: #51cf66;
+            background: #f0fdf4;
+            color: #2f7c31;
+        }
+
+        .answer-option.authorFake {
+            border-color: #ffd43b;
+            background: #fffbeb;
+            color: #b08200;
+        }
+
+        .answer-option.otherFake {
+            border-color: #ff922b;
+            background: #fff4e6;
+            color: #d9480f;
+        }
+
+        .answer-text {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .answer-label {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .answer-detail {
+            font-size: 13px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+
+        /* 採点結果 */
+        .scoring-rules {
+            background: #e6f0ff;
+            border: 1px solid #c6d9ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .scoring-rules h4 {
+            color: #337ab7;
+            margin-bottom: 10px;
+        }
+        .scoring-rules ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .scoring-rules li {
+            margin-bottom: 5px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .scoring-results {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .result-card {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border-left: 4px solid;
+            position: relative; /* 回答表示用 */
+        }
+
+        .result-card.positive {
+            border-left-color: #51cf66;
+        }
+
+        .result-card.negative {
+            border-left-color: #ff6b6b;
+        }
+
+        .result-card.neutral {
+            border-left-color: #868e96;
+        }
+
+        .result-player {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        
+        .result-answer-label {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            opacity: 0.8;
+        }
+
+        .result-score {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+
+        .result-score.plus {
+            color: #51cf66;
+        }
+
+        .result-score.minus {
+            color: #ff6b6b;
+        }
+
+        .result-score.zero {
+            color: #868e96;
+        }
+
+        /* フッター */
+        footer {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .footer-text {
+            line-height: 1.6;
+        }
+
+        /* ステップ表示 */
+        .step-indicator {
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        /* 回答フェーズのUI調整 */
+        #answerSelection {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .answer-status {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .consultation-phase {
+            text-align: center;
+            padding: 20px 0;
+        }
+        
+        /* タイマー表示 */
+        #timerDisplay {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        .timer-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        /* 最終結果 */
+        .final-result-card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .final-result-card h3 {
+            font-size: 24px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .final-ranking-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 16px;
+        }
+        .final-ranking-item:last-child {
+            border-bottom: none;
+        }
+        .rank {
+            font-weight: bold;
+            font-size: 18px;
+            color: #ff922b;
+            width: 40px;
+        }
+        .rank-1 .rank { color: #ffd43b; font-size: 24px; }
+        .rank-2 .rank { color: #868e96; font-size: 20px; }
+        .rank-3 .rank { color: #d9480f; font-size: 18px; }
+        .player-name-final {
+            flex-grow: 1;
+            text-align: left;
+            font-weight: 600;
+        }
+        .score-final {
+            font-weight: bold;
+            color: #51cf66;
+            width: 80px;
+            text-align: right;
+        }
+        .penalty-final {
+            font-size: 12px;
+            color: #ff6b6b;
+            width: 60px;
+            text-align: right;
+        }
+        
+        /* スコア遷移（折りたたみ対応） */
+        .score-history {
+            margin-top: 8px;
+        }
+        .score-history summary {
+            cursor: pointer;
+            font-weight: 700;
+            color: #667eea;
+            list-style: none;
+            outline: none;
+            user-select: none;
+            margin-bottom: 6px;
+        }
+        .score-history[open] {
+            background: #f0f4ff;
+            border-radius: 6px;
+            padding: 8px 10px;
+        }
+        .score-history-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 4px;
+            padding-bottom: 4px;
+            border-bottom: 1px dotted #ccc;
+        }
+        .score-history-item:last-child {
+            border-bottom: none;
+        }
+        .history-label {
+            font-weight: bold;
+            color: #667eea;
+        }
+        .history-value {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>近況3択クイズ</h1>
+            <p id="headerSubtitle">出題者: <span id="currentHostName" style="font-weight: bold; color: #ffd43b;">未定</span></p>
+        </header>
+
+        <div class="content">
+            <!-- サイドバー：プレイヤー管理＆スコア -->
+            <div class="section">
+                <h2>参加者とスコア</h2>
+                
+                <div class="player-input-group">
+                    <input type="text" id="playerNameInput" placeholder="プレイヤー名" />
+                    <button class="btn btn-primary" onclick="addPlayer()">追加</button>
+                </div>
+
+                <div class="player-list" id="playerList"></div>
+            </div>
+
+            <!-- メインコンテンツ：ゲームフロー -->
+            <div>
+                <!-- ステップ1: 出題者入力 -->
+                <div id="step1" class="screen active">
+                    <div class="section">
+                        <div class="step-indicator">STEP 1: 出題者入力</div>
+                        
+                        <div class="form-group">
+                            <label>ラウンド名 (自動設定)</label>
+                            <input type="text" id="roundNameInput" disabled placeholder="[出題者名]の近況報告" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>相談時間設定 (分)</label>
+                            <div class="timer-input-group">
+                                <input type="number" id="consultationTimeInput" value="3" min="1" max="60" />
+                                <span>分</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>正解 (真実)</label>
+                            <textarea id="truthInput" placeholder="出題者の本当の話"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>本人フェイク (出題者の嘘)</label>
+                            <textarea id="authorFakeInput" placeholder="出題者が作った嘘の話"></textarea>
+                        </div>
+
+                        <button class="btn btn-success" onclick="saveHostInput()">
+                            入力完了 & みんな案入力へ
+                        </button>
+                        <button class="btn btn-danger" onclick="resetGame()" style="margin-top: 10px;">
+                            ゲーム全体をリセット
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ステップ2: みんな案入力 -->
+                <div id="step2" class="screen">
+                    <div class="section">
+                        <div class="step-indicator">STEP 2: みんな案入力</div>
+                        <p style="margin-bottom: 15px;">
+                            <strong><span id="currentCandidateAuthor"></span></strong> さん、フェイク案を入力してください。
+                        </p>
+
+                        <div class="form-group">
+                            <label>フェイク内容</label>
+                            <textarea id="candidateTextInput" placeholder="他の人に選ばれるような面白い嘘を考えてね"></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="submitCandidate()">
+                            案を提出
+                        </button>
+                        
+                        <div id="inputStatus" style="margin-top: 20px; font-size: 14px; color: #666;">
+                            他の人の案は表示されません。
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ステップ2.5: みんな案入力完了確認 -->
+                <div id="step2_5" class="screen">
+                    <div class="section">
+                        <div class="step-indicator">STEP 2.5: みんな案提出完了</div>
+                        <p style="margin-bottom: 15px; font-weight: bold;">
+                            出題者以外の全員が案を提出しました。
+                        </p>
+                        <p style="margin-bottom: 20px;">
+                            出題者 <strong><span id="hostNameStep2_5"></span></strong> さん、準備ができたら採用する案を選んでください。
+                        </p>
+                        <button class="btn btn-success" onclick="goToCandidateSelection()">
+                            みんな案の採用へ
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ステップ3: 出題者によるみんな案採用 -->
+                <div id="step3" class="screen">
+                    <div class="section">
+                        <div class="step-indicator">STEP 3: みんな案採用</div>
+                        <p style="margin-bottom: 15px;">
+                            出題者 <strong><span id="hostNameStep3"></span></strong> さん、採用する案を1つ選んでください。<strong>作者名は伏せられています。</strong>
+                        </p>
+                        <div id="candidatesToSelect" class="candidates-section">
+                            <div style="font-size: 13px; color: #999;">みんな案がありません</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ステップ4: 回答フェーズ -->
+                <div id="step4" class="screen">
+                    <div class="section">
+                        <div class="step-indicator">STEP 4: 回答フェーズ</div>
+                        <h3 style="margin-bottom: 15px;">ラウンド: <span id="roundNameDisplay"></span></h3>
+                        
+                        <!-- 選択肢を先に表示 -->
+                        <div class="answers-grid" id="answersGrid"></div>
+                        
+                        <!-- 相談フェーズ -->
+                        <div id="consultationPhase" class="consultation-phase">
+                            <div id="timerDisplay">03:00</div>
+                            <div class="timer-controls">
+                                <button class="btn btn-primary" id="timerStartButton" onclick="startTimer()">タイマー開始</button>
+                                <button class="btn btn-secondary" id="timerStopButton" onclick="stopTimer()" disabled>一時停止</button>
+                                <button class="btn btn-danger" id="timerResetButton" onclick="resetTimer()">リセット</button>
+                            </div>
+                            
+                            <p style="font-weight: bold; margin-top: 20px; margin-bottom: 15px; color: #667eea;">
+                                全員で相談し、回答を決めてください。
+                            </p>
+                            <button class="btn btn-primary" onclick="startAnswering()">
+                                相談終了！回答ターンへ
+                            </button>
+                        </div>
+
+                        <!-- 回答フェーズ -->
+                        <div id="answerSelection" style="display: none;">
+                            <div class="answer-status">
+                                次に回答する人: <strong><span id="currentAnsweringPlayer"></span></strong>
+                            </div>
+                            <p style="margin-bottom: 10px;">
+                                <strong><span id="currentAnsweringPlayerName"></span></strong> さん、選択肢をタップして回答を確定してください。
+                            </p>
+                            
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <button class="btn btn-primary" onclick="submitAnswer()" id="submitAnswerButton" disabled>
+                                    回答確定
+                                </button>
+                                <button class="btn btn-secondary" onclick="skipAnswer()">
+                                    スキップ (未回答)
+                                </button>
+                                <button class="btn btn-danger" onclick="resetAnswerPhase()">
+                                    回答フェーズをリセット
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 全員回答済み後のボタン -->
+                        <div id="allAnsweredControls" style="display: none; margin-top: 20px;">
+                            <p style="font-weight: bold; color: #51cf66; margin-bottom: 15px;">
+                                全員が回答を終えました。
+                            </p>
+                            <button class="btn btn-success" onclick="goToResultPhase()">
+                                結果発表へ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ステップ5: 結果発表 -->
+                <div id="step5" class="screen">
+                    <div class="section">
+                        <div class="step-indicator">STEP 5: 結果発表</div>
+                        <h3 style="margin-bottom: 15px;">ラウンド: <span id="roundNameResult"></span></h3>
+
+                        <button class="btn btn-primary" onclick="revealAnswer()" id="revealButton">
+                            正解を公開して採点
+                        </button>
+                        
+                        <div id="resultContent" style="margin-top: 20px; display: none;">
+                            
+                            <h4 style="margin-bottom: 10px; color: #667eea;">採点ルール</h4>
+                            <div class="scoring-rules">
+                                <ul>
+                                    <li><strong>正解を選んだ人：</strong> +1pt</li>
+                                    <li><strong>出題者フェイクを選んだ人：</strong> ±0pt (減点なし)</li>
+                                    <li><strong>他者フェイクを選んだ人：</strong> -1pt</li>
+                                    <li><strong>出題者へのボーナス：</strong> 本人フェイクを選んだ人数 × +1pt</li>
+                                    <li><strong>フェイク作成者へのボーナス：</strong> 他者フェイクを選んだ人数 × +1pt</li>
+                                </ul>
+                            </div>
+
+                            <h4 style="margin-top: 20px; margin-bottom: 10px; color: #667eea;">選択肢の正体</h4>
+                            <div class="answers-grid" id="finalAnswersGrid"></div>
+
+                            <h4 style="margin-top: 20px; margin-bottom: 10px; color: #667eea;">採点結果</h4>
+                            <div class="scoring-results" id="scoringResults"></div>
+
+                            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                                <button class="btn btn-success" onclick="nextRound()">次のラウンドへ</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ステップ6: 最終結果 -->
+                <div id="step6" class="screen">
+                    <div class="section">
+                        <div class="step-indicator">GAME OVER: 最終結果</div>
+                        <div class="final-result-card">
+                            <h3>全ラウンド終了！最終結果発表！</h3>
+                            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">※同点の場合、ペナルティ（マイナス点）が少ない方が上位です。</p>
+                            <div id="finalRankingList"></div>
+                            <button class="btn btn-danger" onclick="resetGame()" style="margin-top: 20px;">
+                                ゲーム全体をリセット
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <div class="footer-text">
+                <p>🎭 最下位は顔ハメパネルの儀 🎭</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // =====================
+        // データ管理
+        // =====================
+        const PLAYERS_KEY = 'quizAppPlayersV11';
+        const HOST_INDEX_KEY = 'quizAppHostIndexV11';
+        const ROUND_D_
 
